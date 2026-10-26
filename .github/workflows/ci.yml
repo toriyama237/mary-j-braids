@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  qualite:
+    name: Lint, types et build
+    runs-on: ubuntu-latest
+    env:
+      # Le build ne se connecte pas à la base ; ces valeurs factices suffisent.
+      DATABASE_URL: mysql://ci:ci@localhost:3306/ci
+      SESSION_PASSWORD: ci-only-secret-de-test-32-caracteres-min
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build

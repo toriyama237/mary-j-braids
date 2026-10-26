@@ -1,0 +1,23 @@
+# Base MySQL locale pour le développement (en production : MySQL Hostinger).
+services:
+  db:
+    image: mysql:8.4
+    container_name: mjb-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: mjb
+      MYSQL_USER: mjb
+      MYSQL_PASSWORD: mjb
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3307:3306"
+    volumes:
+      - mjb-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-umjb", "-pmjb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  mjb-mysql:
