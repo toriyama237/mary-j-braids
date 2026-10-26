@@ -19,16 +19,16 @@ clients, prestations, programme de fidélité et finances, depuis un téléphone
 
 ## Fonctionnalités
 
-| Module              | Ce qu'il permet                                                                                                                              |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Connexion**       | Accès protégé par identifiant et mot de passe (session chiffrée, 7 jours).                                                                   |
-| **Accueil**         | Chiffre du jour et du mois, derniers passages, clients proches d'une prestation offerte.                                                     |
-| **Clients**         | Liste avec recherche instantanée, fiche client, historique, carte de fidélité, message WhatsApp pré-rempli, fiche PDF.                       |
-| **Nouveau passage** | Client existant ou créé à la volée, catalogue hommes / femmes, prix pré-rempli, Espèces / Orange Money / MTN MoMo.                           |
-| **Fidélité**        | Une case par passage payé ; au seuil (10 par défaut), la prestation suivante est offerte et la carte repart à zéro.                          |
-| **Finances**        | Périodes (mois, mois dernier, année, personnalisée), chiffre d'affaires, dépenses, bénéfice net, graphique, répartitions, meilleurs clients. |
-| **Exports**         | Rapport financier PDF, fiche client PDF, export Excel (CSV) des passages.                                                                    |
-| **Réglages**        | Catalogue des services et prix, seuil de fidélité, changement de mot de passe.                                                               |
+| Module                 | Ce qu'il permet                                                                                                                                                                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Connexion et rôles** | Accès par identifiant et mot de passe (session chiffrée, 7 jours). Rôle **gérant** (accès complet) ou **employé** (clients et passages, sans finances ni réglages).                                                                         |
+| **Accueil**            | Chiffre du jour et du mois, derniers passages, clients proches d'une prestation offerte.                                                                                                                                                    |
+| **Clients**            | Liste avec recherche instantanée, fiche client, historique, carte de fidélité, message WhatsApp pré-rempli, fiche PDF.                                                                                                                      |
+| **Passages**           | Client existant ou créé à la volée, catalogue hommes / femmes ou **service saisi librement** (ajouté au catalogue), prix pré-rempli, Espèces / Orange Money / MTN MoMo. Modification et suppression depuis la fiche client ou les finances. |
+| **Fidélité**           | Une case par passage payé ; au seuil (10 par défaut), la prestation suivante est offerte et la carte repart à zéro.                                                                                                                         |
+| **Finances**           | Périodes (mois, mois dernier, année, personnalisée), chiffre d'affaires, dépenses (ajout, modification, suppression), bénéfice net, graphique, répartitions, meilleurs clients, liste des passages modifiables.                             |
+| **Exports**            | Rapport financier PDF, fiche client PDF, export Excel (CSV) des passages.                                                                                                                                                                   |
+| **Réglages**           | Catalogue des services (ajout, modification, masquage, suppression si jamais utilisé), seuil de fidélité, **utilisateurs** (création, rôle, réinitialisation du mot de passe, suppression), mot de passe personnel.                         |
 
 Interface pensée d'abord pour le téléphone (barre de navigation en bas, gros boutons),
 animations discrètes qui respectent le réglage « réduire les animations » du système.
@@ -92,7 +92,8 @@ drizzle/                       Migrations SQL
 
 ## Sécurité
 
-- Chaque page, action et export vérifie la session côté serveur (`requireUser`), pas seulement le proxy.
+- Chaque page, action et export vérifie la session côté serveur (`requireUser`, `requireAdmin` pour les finances et les réglages), pas seulement le proxy.
+- Un gérant ne peut ni se rétrograder ni supprimer son propre compte ; il reste toujours au moins un gérant.
 - Mots de passe hachés avec bcrypt (12 tours) ; cookie de session `httpOnly`, `secure` en production.
 - Toutes les saisies sont validées côté serveur avec Zod ; les requêtes SQL passent par Drizzle (paramétrées).
 - Aucune donnée réelle dans ce dépôt : `.env` est ignoré par git, les données de démo sont fictives.

@@ -15,12 +15,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       {/* Menu latéral — ordinateur */}
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-stone-200 bg-white px-4 py-6 lg:flex">
         <Logo className="mb-8 px-2" />
-        <SidebarNav />
+        <SidebarNav role={user.role} />
         <div className="mt-auto flex items-center gap-3 rounded-xl bg-sand/60 p-3">
           <Avatar name={user.name} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{user.name}</p>
-            <p className="text-xs text-stone-500">Gérante</p>
+            <p className="text-xs text-stone-500">{user.role === "admin" ? "Gérant" : "Employé"}</p>
           </div>
           <form action={logout}>
             <button
@@ -55,7 +55,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
       <main className="mx-auto w-full max-w-6xl px-4 pt-6 pb-28 sm:px-6 lg:px-10 lg:py-10">{children}</main>
 
-      <BottomNav />
+      <BottomNav role={user.role} />
       <Suspense>
         <Toast />
       </Suspense>

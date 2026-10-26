@@ -17,6 +17,8 @@ export const users = mysqlTable("users", {
   name: varchar("name", { length: 100 }).notNull(),
   username: varchar("username", { length: 50 }).notNull().unique(),
   passwordHash: varchar("password_hash", { length: 100 }).notNull(),
+  // gérant : accès complet ; employé : clients et passages, sans finances ni réglages.
+  role: mysqlEnum("role", ["admin", "staff"]).default("staff").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -58,7 +60,7 @@ export const visits = mysqlTable(
     // Prestation offerte par le programme de fidélité (prix = 0).
     isFree: boolean("is_free").default(false).notNull(),
     note: text("note"),
-    createdBy: int("created_by").references(() => users.id),
+    createdBy: int("created_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [index("visits_client_idx").on(t.clientId), index("visits_date_idx").on(t.date)],

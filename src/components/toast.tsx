@@ -16,6 +16,13 @@ const MESSAGES: Record<string, string> = {
   service: "Catalogue mis à jour",
   fidelite: "Seuil de fidélité mis à jour",
   "mot-de-passe": "Mot de passe modifié",
+  "passage-modifie": "Passage modifié",
+  "client-supprime": "Client supprimé",
+  "depense-modifiee": "Dépense modifiée",
+  "service-supprime": "Service supprimé",
+  utilisateur: "Utilisateur créé",
+  "utilisateur-modifie": "Utilisateur mis à jour",
+  "utilisateur-supprime": "Utilisateur supprimé",
 };
 
 export function Toast() {

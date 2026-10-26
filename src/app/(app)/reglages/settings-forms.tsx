@@ -7,7 +7,9 @@ import { Field, Select } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/cn";
 import { AUDIENCE_LABELS, formatFCFA } from "@/lib/format";
-import { changePassword, saveService, saveThreshold, toggleService, type FormState } from "./actions";
+import { ConfirmDelete } from "@/components/confirm-delete";
+import type { FormState } from "@/lib/form";
+import { changePassword, deleteService, saveService, saveThreshold, toggleService } from "./actions";
 
 type Service = {
   id: number;
@@ -15,6 +17,8 @@ type Service = {
   audience: "femme" | "homme" | "mixte";
   defaultPrice: number;
   active: boolean;
+  /** Nombre de passages enregistrés avec ce service. */
+  used: number;
 };
 
 export function ServiceRow({ service, index }: { service: Service; index: number }) {
@@ -72,6 +76,15 @@ export function ServiceRow({ service, index }: { service: Service; index: number
       >
         <Pencil className="size-4" />
       </button>
+      {service.used === 0 ? (
+        <ConfirmDelete
+          action={deleteService.bind(null, service.id)}
+          message={`Supprimer définitivement le service « ${service.name} » ?`}
+          label={`Supprimer ${service.name}`}
+        />
+      ) : (
+        <span className="size-9" aria-hidden title="Déjà utilisé : masquez-le plutôt" />
+      )}
     </li>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, Check, Gift, Search, Smartphone, UserPlus, X } from "lucide-react";
+import { Banknote, Check, Gift, PenLine, Search, Smartphone, UserPlus, X } from "lucide-react";
 import { useActionState, useMemo, useState } from "react";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Field, Segmented, TextArea } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/cn";
 import { AUDIENCE_LABELS, formatFCFA, initials } from "@/lib/format";
-import { createVisit, type VisitFormState } from "../actions";
+import { createVisit, updateVisit, type VisitFormState } from "../actions";
 
 type PickerClient = { id: number; name: string; phone: string | null; stamps: number };
 type PickerService = {
@@ -19,35 +19,55 @@ type PickerService = {
 };
 type Payment = "especes" | "orange_money" | "mtn_momo";
 
+/** Passage existant à modifier (le client et le statut « offert » restent fixes). */
+export type EditedVisit = {
+  id: number;
+  returnTo: string;
+  clientName: string;
+  serviceId: number;
+  price: number;
+  date: string;
+  paymentMethod: Payment;
+  note: string | null;
+  isFree: boolean;
+};
+
 export function VisitForm({
   clients,
   services,
   threshold,
   today,
   initialClientId,
+  edit,
 }: {
   clients: PickerClient[];
   services: PickerService[];
   threshold: number;
   today: string;
   initialClientId?: number;
+  edit?: EditedVisit;
 }) {
-  const [state, formAction] = useActionState<VisitFormState, FormData>(createVisit, {});
+  const [state, formAction] = useActionState<VisitFormState, FormData>(
+    edit ? updateVisit.bind(null, edit.id, edit.returnTo) : createVisit,
+    {},
+  );
   const e = state.errors ?? {};
 
   const [mode, setMode] = useState<"existing" | "new">("existing");
   const [clientId, setClientId] = useState<number | null>(initialClientId ?? null);
   const [query, setQuery] = useState("");
   const [audience, setAudience] = useState<"tous" | "femme" | "homme">("tous");
-  const [serviceId, setServiceId] = useState<number | null>(null);
-  const [price, setPrice] = useState("");
-  const [payment, setPayment] = useState<Payment>("especes");
-  const [date, setDate] = useState(today);
+  const [serviceId, setServiceId] = useState<number | null>(edit?.serviceId ?? null);
+  const [customService, setCustomService] = useState<string | null>(null);
+  const [price, setPrice] = useState(edit ? String(edit.price) : "");
+  const [payment, setPayment] = useState<Payment>(edit?.paymentMethod ?? "especes");
+  const [date, setDate] = useState(edit?.date ?? today);
   const [useGift, setUseGift] = useState(false);
 
   const client = clients.find((c) => c.id === clientId) ?? null;
-  const eligible = mode === "existing" && !!client && client.stamps >= threshold;
-  const isFree = eligible && useGift;
+  const eligible = !edit && mode === "existing" && !!client && client.stamps >= threshold;
+  const isFree = edit ? edit.isFree : eligible && useGift;
+  const isCustom = customService !== null;
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -66,6 +86,7 @@ export function VisitForm({
 
   function pickService(s: PickerService) {
     setServiceId(s.id);
+    setCustomService(null);
     setPrice(String(s.defaultPrice));
   }
 
@@ -75,12 +96,25 @@ export function VisitForm({
     <form action={formAction} className="space-y-4 pb-24 lg:pb-0" noValidate>
       <input type="hidden" name="mode" value={mode} />
       <input type="hidden" name="clientId" value={mode === "existing" ? (clientId ?? "") : ""} />
-      <input type="hidden" name="serviceId" value={serviceId ?? ""} />
+      <input type="hidden" name="serviceId" value={isCustom ? "" : (serviceId ?? "")} />
+      <input type="hidden" name="serviceMode" value={isCustom ? "custom" : "catalogue"} />
       <input type="hidden" name="isFree" value={isFree ? "1" : "0"} />
 
       {/* 1. Client */}
       <Step number={1} title="Client" error={e.client}>
-        {mode === "existing" && client ? (
+        {edit ? (
+          <div className="flex items-center gap-3 rounded-xl border border-stone-200 bg-cream p-3">
+            <span className="grid size-11 place-items-center rounded-full bg-white text-sm font-semibold text-brand-700">
+              {initials(edit.clientName)}
+            </span>
+            <p className="min-w-0 flex-1 truncate font-semibold">{edit.clientName}</p>
+            {edit.isFree && (
+              <span className="flex items-center gap-1 rounded-full bg-gold-400/20 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                <Gift className="size-3.5" /> Prestation offerte
+              </span>
+            )}
+          </div>
+        ) : mode === "existing" && client ? (
           <div className="flex animate-scale-in items-center gap-3 rounded-xl border-2 border-brand-500 bg-brand-50 p-3">
             <span className="grid size-11 place-items-center rounded-full bg-white text-sm font-semibold text-brand-700">
               {initials(client.name)}
@@ -253,7 +287,35 @@ export function VisitForm({
               </button>
             );
           })}
+          <button
+            type="button"
+            onClick={() => setCustomService(customService ?? "")}
+            className={cn(
+              "flex flex-col items-start justify-center rounded-xl border-2 border-dashed p-3 text-left transition-all active:scale-[0.98]",
+              isCustom
+                ? "border-brand-500 bg-brand-50 text-brand-700"
+                : "border-stone-300 text-stone-600 hover:border-brand-400 hover:text-brand-700",
+            )}
+          >
+            <PenLine className="mb-1 size-4" />
+            <span className="text-sm font-semibold">Autre service</span>
+            <span className="text-xs opacity-80">Pas dans la liste</span>
+          </button>
         </div>
+        {isCustom && (
+          <div className="mt-4 animate-fade-up space-y-1.5">
+            <Field
+              label="Nom du service"
+              id="customService"
+              value={customService}
+              onChange={(ev) => setCustomService(ev.target.value)}
+              placeholder="ex. Coloration, Soin vapeur…"
+              autoFocus
+              error={e.customService}
+              hint="Il sera ajouté au catalogue pour les prochaines fois (modifiable dans Réglages)."
+            />
+          </div>
+        )}
       </Step>
 
       {/* 3. Paiement */}
@@ -297,7 +359,13 @@ export function VisitForm({
               ]}
             />
           )}
-          <TextArea label="Remarque" id="note" rows={2} placeholder="Facultatif" />
+          <TextArea
+            label="Remarque"
+            id="note"
+            rows={2}
+            placeholder="Facultatif"
+            defaultValue={edit?.note ?? ""}
+          />
         </div>
       </Step>
 
@@ -310,10 +378,12 @@ export function VisitForm({
               {isFree ? "Offert" : formatFCFA(total)}
             </p>
           </div>
-          <ButtonLink href="/" variant="ghost" className="hidden sm:inline-flex">
+          <ButtonLink href={edit?.returnTo ?? "/"} variant="ghost" className="hidden sm:inline-flex">
             Annuler
           </ButtonLink>
-          <SubmitButton className="h-12 min-w-40">Enregistrer</SubmitButton>
+          <SubmitButton className="h-12 min-w-40">
+            {edit ? "Enregistrer les modifications" : "Enregistrer"}
+          </SubmitButton>
         </div>
       </div>
     </form>

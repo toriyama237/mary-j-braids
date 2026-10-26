@@ -1,15 +1,16 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { and, count, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
-import { services, settings, users } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { services, settings, users, visits } from "@/db/schema";
+import { requireAdmin, requireUser } from "@/lib/auth";
+import { fieldErrors, readFields, type FormState } from "@/lib/form";
 
-export type FormState = { errors?: Record<string, string | undefined>; values?: Record<string, string> };
+/* ---------- Services ---------- */
 
 const serviceSchema = z.object({
   name: z.string().trim().min(2, "Nom trop court.").max(100),
@@ -21,26 +22,15 @@ const serviceSchema = z.object({
     .max(1_000_000),
 });
 
-function errorsOf(error: z.ZodError) {
-  const flat = z.flattenError(error).fieldErrors as Record<string, string[] | undefined>;
-  return Object.fromEntries(Object.entries(flat).map(([k, v]) => [k, v?.[0]]));
-}
-
-function readService(formData: FormData) {
-  const values = Object.fromEntries(
-    ["name", "audience", "defaultPrice"].map((k) => [k, String(formData.get(k) ?? "")]),
-  );
-  return { values, parsed: serviceSchema.safeParse(values) };
-}
-
 export async function saveService(
   id: number | null,
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await requireUser();
-  const { values, parsed } = readService(formData);
-  if (!parsed.success) return { errors: errorsOf(parsed.error), values };
+  await requireAdmin();
+  const values = readFields(formData, ["name", "audience", "defaultPrice"]);
+  const parsed = serviceSchema.safeParse(values);
+  if (!parsed.success) return { errors: fieldErrors(parsed.error), values };
 
   if (id) await db.update(services).set(parsed.data).where(eq(services.id, id));
   else await db.insert(services).values(parsed.data);
@@ -48,15 +38,26 @@ export async function saveService(
   redirect("/reglages?ok=service");
 }
 
-/** Désactiver plutôt que supprimer : l'historique des passages garde le service. */
+/** Masquer plutôt que supprimer : l'historique des passages garde le service. */
 export async function toggleService(id: number, active: boolean) {
-  await requireUser();
+  await requireAdmin();
   await db.update(services).set({ active }).where(eq(services.id, id));
   revalidatePath("/", "layout");
 }
 
+/** Suppression définitive, possible seulement pour un service jamais utilisé. */
+export async function deleteService(id: number) {
+  await requireAdmin();
+  const [{ used }] = await db.select({ used: count() }).from(visits).where(eq(visits.serviceId, id));
+  if (used === 0) await db.delete(services).where(eq(services.id, id));
+  revalidatePath("/", "layout");
+  redirect(`/reglages?ok=${used === 0 ? "service-supprime" : "service"}`);
+}
+
+/* ---------- Fidélité ---------- */
+
 export async function saveThreshold(_prev: FormState, formData: FormData): Promise<FormState> {
-  await requireUser();
+  await requireAdmin();
   const value = String(formData.get("threshold") ?? "");
   const parsed = z.coerce.number().int().min(2).max(50).safeParse(value);
   if (!parsed.success)
@@ -70,6 +71,80 @@ export async function saveThreshold(_prev: FormState, formData: FormData): Promi
   redirect("/reglages?ok=fidelite");
 }
 
+/* ---------- Utilisateurs ---------- */
+
+const userSchema = z.object({
+  name: z.string().trim().min(2, "Indiquez le nom.").max(100),
+  username: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9._-]{3,50}$/, "3 caractères minimum : lettres, chiffres, point, tiret."),
+  role: z.enum(["admin", "staff"], { error: "Choisissez un rôle." }),
+  password: z.string(),
+});
+
+async function adminCount(exceptId?: number) {
+  const [{ n }] = await db
+    .select({ n: count() })
+    .from(users)
+    .where(exceptId ? and(eq(users.role, "admin"), ne(users.id, exceptId)) : eq(users.role, "admin"));
+  return n;
+}
+
+/** Crée (id = null) ou modifie un utilisateur ; un mot de passe saisi en modification le réinitialise. */
+export async function saveUser(id: number | null, _prev: FormState, formData: FormData): Promise<FormState> {
+  const me = await requireAdmin();
+  const values = readFields(formData, ["name", "username", "role", "password"]);
+  const parsed = userSchema.safeParse(values);
+  const errors: FormState["errors"] = parsed.success ? {} : fieldErrors(parsed.error);
+  const keep = { ...values, password: "" };
+
+  const password = values.password;
+  if ((!id || password) && password.length < 8) errors.password = "8 caractères minimum.";
+  if (!parsed.success || Object.values(errors).some(Boolean)) return { errors, values: keep };
+
+  const data = parsed.data;
+  const [taken] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(id ? and(eq(users.username, data.username), ne(users.id, id)) : eq(users.username, data.username))
+    .limit(1);
+  if (taken) return { errors: { username: "Cet identifiant est déjà utilisé." }, values: keep };
+
+  if (id && data.role !== "admin" && (id === me.id || (await adminCount(id)) === 0)) {
+    return {
+      errors: { role: "Il faut garder au moins un gérant (et vous ne pouvez pas vous rétrograder)." },
+      values: keep,
+    };
+  }
+
+  const fields = { name: data.name, username: data.username, role: data.role };
+  if (id) {
+    await db
+      .update(users)
+      .set(password ? { ...fields, passwordHash: await bcrypt.hash(password, 12) } : fields)
+      .where(eq(users.id, id));
+  } else {
+    await db.insert(users).values({ ...fields, passwordHash: await bcrypt.hash(password, 12) });
+  }
+  revalidatePath("/", "layout");
+  redirect(`/reglages?ok=${id ? "utilisateur-modifie" : "utilisateur"}`);
+}
+
+export async function deleteUser(id: number) {
+  const me = await requireAdmin();
+  const [target] = await db.select({ role: users.role }).from(users).where(eq(users.id, id)).limit(1);
+  // Impossible de supprimer son propre compte ou le dernier gérant.
+  if (target && id !== me.id && !(target.role === "admin" && (await adminCount(id)) === 0)) {
+    await db.delete(users).where(eq(users.id, id));
+  }
+  revalidatePath("/reglages");
+  redirect("/reglages?ok=utilisateur-supprime");
+}
+
+/* ---------- Mon mot de passe (tous les utilisateurs) ---------- */
+
 const passwordSchema = z
   .object({
     current: z.string().min(1, "Saisissez votre mot de passe actuel."),
@@ -80,12 +155,8 @@ const passwordSchema = z
 
 export async function changePassword(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
-  const parsed = passwordSchema.safeParse({
-    current: formData.get("current"),
-    next: formData.get("next"),
-    confirm: formData.get("confirm"),
-  });
-  if (!parsed.success) return { errors: errorsOf(parsed.error) };
+  const parsed = passwordSchema.safeParse(readFields(formData, ["current", "next", "confirm"]));
+  if (!parsed.success) return { errors: fieldErrors(parsed.error) };
 
   const [row] = await db.select({ hash: users.passwordHash }).from(users).where(eq(users.id, user.id));
   if (!row || !(await bcrypt.compare(parsed.data.current, row.hash))) {

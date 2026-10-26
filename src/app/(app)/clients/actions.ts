@@ -85,9 +85,11 @@ export async function updateClient(
   redirect(`/clients/${id}?ok=client-modifie`);
 }
 
-export async function deleteVisit(visitId: number, clientId: number) {
+/** Supprime le client et tout son historique de passages. */
+export async function deleteClient(id: number) {
   await requireUser();
-  await db.delete(visits).where(and(eq(visits.id, visitId), eq(visits.clientId, clientId)));
+  await db.delete(visits).where(eq(visits.clientId, id));
+  await db.delete(clients).where(eq(clients.id, id));
   revalidatePath("/", "layout");
-  redirect(`/clients/${clientId}?ok=passage-supprime`);
+  redirect("/clients?ok=client-supprime");
 }

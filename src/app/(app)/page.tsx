@@ -12,6 +12,8 @@ export const metadata: Metadata = { title: "Accueil" };
 
 export default async function DashboardPage() {
   const [user, data] = await Promise.all([requireUser(), getDashboard()]);
+  // Le chiffre d'affaires n'est affiché qu'au gérant ; l'employé voit le nombre de passages.
+  const showMoney = user.role === "admin";
   const firstName = user.name.split(" ")[0];
   const longDate = new Date(`${todayISO()}T12:00:00`).toLocaleDateString("fr-FR", {
     weekday: "long",
@@ -39,15 +41,15 @@ export default async function DashboardPage() {
           highlight
           icon={<CalendarDays className="size-5" />}
           label="Aujourd'hui"
-          value={formatFCFA(data.today.revenue)}
-          hint={plural(data.today.visits, "passage")}
+          value={showMoney ? formatFCFA(data.today.revenue) : plural(data.today.visits, "passage")}
+          hint={showMoney ? plural(data.today.visits, "passage") : "enregistrés aujourd'hui"}
         />
         <StatCard
           index={1}
           icon={<TrendingUp className="size-5" />}
           label="Ce mois-ci"
-          value={formatFCFA(data.month.revenue)}
-          hint={plural(data.month.visits, "passage")}
+          value={showMoney ? formatFCFA(data.month.revenue) : plural(data.month.visits, "passage")}
+          hint={showMoney ? plural(data.month.visits, "passage") : "depuis le 1er du mois"}
         />
         <StatCard
           index={2}

@@ -6,13 +6,17 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 
 type NavItem = { href: string; label: string; icon: LucideIcon };
+type Role = "admin" | "staff";
 
-const items: NavItem[] = [
-  { href: "/", label: "Accueil", icon: House },
-  { href: "/clients", label: "Clients", icon: Users },
-  { href: "/finances", label: "Finances", icon: Wallet },
-  { href: "/reglages", label: "Réglages", icon: Settings },
-];
+/** Un employé ne voit pas les finances ; « Réglages » devient « Mon compte ». */
+function navItems(role: Role): NavItem[] {
+  return [
+    { href: "/", label: "Accueil", icon: House },
+    { href: "/clients", label: "Clients", icon: Users },
+    ...(role === "admin" ? [{ href: "/finances", label: "Finances", icon: Wallet }] : []),
+    { href: "/reglages", label: role === "admin" ? "Réglages" : "Mon compte", icon: Settings },
+  ];
+}
 
 const NEW_VISIT = "/passages/nouveau";
 
@@ -22,7 +26,7 @@ function useIsActive() {
 }
 
 /** Menu latéral (ordinateur et tablette). */
-export function SidebarNav() {
+export function SidebarNav({ role }: { role: Role }) {
   const isActive = useIsActive();
   return (
     <nav className="space-y-1">
@@ -33,7 +37,7 @@ export function SidebarNav() {
         <Plus className="size-5" />
         Nouveau passage
       </Link>
-      {items.map(({ href, label, icon: Icon }) => (
+      {navItems(role).map(({ href, label, icon: Icon }) => (
         <Link
           key={href}
           href={href}
@@ -54,11 +58,11 @@ export function SidebarNav() {
 }
 
 /** Barre de navigation du bas (téléphone), avec le bouton « + » au centre. */
-export function BottomNav() {
+export function BottomNav({ role }: { role: Role }) {
   const isActive = useIsActive();
   // Le formulaire de passage a sa propre barre d'enregistrement en bas.
   if (isActive(NEW_VISIT)) return null;
-  const [first, second, ...rest] = items;
+  const [first, second, ...rest] = navItems(role);
   const tab = ({ href, label, icon: Icon }: NavItem) => (
     <Link
       key={href}

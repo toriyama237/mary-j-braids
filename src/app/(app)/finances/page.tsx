@@ -1,9 +1,9 @@
-import { FileDown, FileSpreadsheet, Gift, ReceiptText, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { FileDown, FileSpreadsheet, Gift, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ConfirmDelete } from "@/components/confirm-delete";
 import { Breakdown } from "@/components/finances/breakdown";
-import { ExpenseForm } from "@/components/finances/expense-form";
+import { ExpenseRow, NewExpense } from "@/components/finances/expense-form";
+import { VisitsTable } from "@/components/finances/visits-table";
 import { PeriodFilter } from "@/components/finances/period-filter";
 import { RevenueChart } from "@/components/finances/revenue-chart";
 import { ButtonLink } from "@/components/ui/button";
@@ -11,15 +11,15 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { cn } from "@/lib/cn";
-import { EXPENSE_LABELS, formatFCFA, formatShortDate, PAYMENT_LABELS, plural, todayISO } from "@/lib/format";
-import { getFinances, resolvePeriod } from "@/lib/queries/finances";
-import { deleteExpense } from "./actions";
+import { formatFCFA, PAYMENT_LABELS, plural, todayISO } from "@/lib/format";
+import { getFinances, getVisitsForExport, resolvePeriod } from "@/lib/queries/finances";
 
 export const metadata: Metadata = { title: "Finances" };
 
 export default async function FinancesPage({ searchParams }: PageProps<"/finances">) {
   const period = resolvePeriod(await searchParams);
-  const f = await getFinances(period);
+  const [f, periodVisits] = await Promise.all([getFinances(period), getVisitsForExport(period)]);
+  const today = todayISO();
 
   const query = new URLSearchParams(
     period.key === "perso"
@@ -173,31 +173,17 @@ export default async function FinancesPage({ searchParams }: PageProps<"/finance
             {f.expenseList.length > 0 && (
               <ul className="divide-y divide-stone-100">
                 {f.expenseList.map((x) => (
-                  <li key={x.id} className="flex items-center gap-3 py-2.5 pr-3 pl-5">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-full bg-red-50 text-red-600">
-                      <ReceiptText className="size-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">{x.label}</span>
-                      <span className="text-xs text-stone-500">
-                        {EXPENSE_LABELS[x.category]} · {formatShortDate(x.date)}
-                      </span>
-                    </span>
-                    <span className="text-sm font-semibold whitespace-nowrap">{formatFCFA(x.amount)}</span>
-                    <ConfirmDelete
-                      action={deleteExpense.bind(null, x.id, returnTo)}
-                      message={`Supprimer la dépense « ${x.label} » ?`}
-                      label="Supprimer cette dépense"
-                    />
-                  </li>
+                  <ExpenseRow key={x.id} expense={x} returnTo={returnTo} today={today} />
                 ))}
               </ul>
             )}
             <div className="p-4">
-              <ExpenseForm returnTo={returnTo} today={todayISO()} />
+              <NewExpense returnTo={returnTo} today={today} />
             </div>
           </Card>
         </div>
+
+        <VisitsTable visits={periodVisits} returnTo={returnTo} />
       </div>
     </>
   );

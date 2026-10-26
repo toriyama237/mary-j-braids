@@ -29,8 +29,8 @@ async function main() {
   const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
   await db
     .insert(users)
-    .values({ name: ADMIN_NAME ?? "Gérant", username: ADMIN_USERNAME, passwordHash })
-    .onDuplicateKeyUpdate({ set: { passwordHash } });
+    .values({ name: ADMIN_NAME ?? "Gérant", username: ADMIN_USERNAME, passwordHash, role: "admin" })
+    .onDuplicateKeyUpdate({ set: { passwordHash, role: "admin" } });
 
   const existing = await db.select({ id: services.id }).from(services).limit(1);
   if (existing.length === 0) await db.insert(services).values(CATALOGUE);

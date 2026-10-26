@@ -1,5 +1,6 @@
 import { Cake, FileDown, MessageCircle, Pencil, Phone, Plus, Receipt, StickyNote } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { LoyaltyCard } from "@/components/loyalty-card";
@@ -16,7 +17,8 @@ import {
   whatsappLink,
 } from "@/lib/format";
 import { getClientDetail } from "@/lib/queries/clients";
-import { deleteVisit } from "../actions";
+import { deleteVisit } from "../../passages/actions";
+import { deleteClient } from "../actions";
 
 export const metadata: Metadata = { title: "Fiche client" };
 
@@ -104,6 +106,15 @@ export default async function ClientPage({ params }: PageProps<"/clients/[id]">)
               </a>
             )}
           </Card>
+
+          <div className="text-center">
+            <ConfirmDelete
+              asButton
+              action={deleteClient.bind(null, client.id)}
+              message={`Supprimer définitivement ${client.name} et ses ${totals.visits} passage(s) ? Cette action est irréversible.`}
+              label="Supprimer ce client"
+            />
+          </div>
         </div>
 
         <Card>
@@ -149,8 +160,16 @@ export default async function ClientPage({ params }: PageProps<"/clients/[id]">)
                   ) : (
                     <span className="text-sm font-semibold whitespace-nowrap">{formatFCFA(v.price)}</span>
                   )}
+                  <Link
+                    href={`/passages/${v.id}/modifier?retour=/clients/${client.id}`}
+                    aria-label="Modifier ce passage"
+                    title="Modifier"
+                    className="grid size-9 shrink-0 place-items-center rounded-lg text-stone-400 transition-colors hover:bg-sand hover:text-stone-700"
+                  >
+                    <Pencil className="size-4" />
+                  </Link>
                   <ConfirmDelete
-                    action={deleteVisit.bind(null, v.id, client.id)}
+                    action={deleteVisit.bind(null, v.id, `/clients/${client.id}`)}
                     message={`Supprimer le passage « ${v.service} » du ${formatDate(v.date)} ?`}
                     label="Supprimer ce passage"
                   />

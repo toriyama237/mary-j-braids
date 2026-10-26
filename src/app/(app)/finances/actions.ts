@@ -6,12 +6,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
 import { expenses } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
-
-export type ExpenseFormState = {
-  errors?: Partial<Record<"label" | "amount" | "date" | "category", string>>;
-  values?: Record<string, string>;
-};
+import { requireAdmin } from "@/lib/auth";
+import { fieldErrors, readFields, type FormState } from "@/lib/form";
 
 const expenseSchema = z.object({
   label: z.string().trim().min(2, "Décrivez la dépense.").max(150),
@@ -25,28 +21,26 @@ const expenseSchema = z.object({
   }),
 });
 
-export async function createExpense(
+/** Crée (id = null) ou modifie une dépense. */
+export async function saveExpense(
+  id: number | null,
   returnTo: string,
-  _prev: ExpenseFormState,
+  _prev: FormState,
   formData: FormData,
-): Promise<ExpenseFormState> {
-  await requireUser();
-  const values = Object.fromEntries(
-    ["label", "amount", "date", "category"].map((k) => [k, String(formData.get(k) ?? "")]),
-  );
+): Promise<FormState> {
+  await requireAdmin();
+  const values = readFields(formData, ["label", "amount", "date", "category"]);
   const parsed = expenseSchema.safeParse(values);
-  if (!parsed.success) {
-    const flat = z.flattenError(parsed.error).fieldErrors as Record<string, string[] | undefined>;
-    return { errors: Object.fromEntries(Object.entries(flat).map(([k, v]) => [k, v?.[0]])), values };
-  }
+  if (!parsed.success) return { errors: fieldErrors(parsed.error), values };
 
-  await db.insert(expenses).values(parsed.data);
+  if (id) await db.update(expenses).set(parsed.data).where(eq(expenses.id, id));
+  else await db.insert(expenses).values(parsed.data);
   revalidatePath("/finances");
-  redirect(withOk(returnTo, "depense"));
+  redirect(withOk(returnTo, id ? "depense-modifiee" : "depense"));
 }
 
 export async function deleteExpense(id: number, returnTo: string) {
-  await requireUser();
+  await requireAdmin();
   await db.delete(expenses).where(eq(expenses.id, id));
   revalidatePath("/finances");
   redirect(withOk(returnTo, "depense-supprimee"));

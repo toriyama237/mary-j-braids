@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, between, count, desc, eq, sql, sum } from "drizzle-orm";
 import { db } from "@/db";
 import { clients, expenses, services, visits } from "@/db/schema";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { todayISO } from "@/lib/format";
 
 export type Period = { key: string; from: string; to: string; label: string };
@@ -44,7 +44,7 @@ export function resolvePeriod(params: Record<string, string | string[] | undefin
 }
 
 export async function getFinances(period: Period) {
-  await requireUser();
+  await requireAdmin();
 
   const inRange = between(visits.date, period.from, period.to);
   const days = (Date.parse(period.to) - Date.parse(period.from)) / 864e5 + 1;
@@ -154,9 +154,11 @@ function fillSeries(
 
 /** Passages détaillés de la période, pour les exports. */
 export async function getVisitsForExport(period: Period) {
-  await requireUser();
+  await requireAdmin();
   return db
     .select({
+      id: visits.id,
+      clientId: visits.clientId,
       date: visits.date,
       client: clients.name,
       phone: clients.phone,
