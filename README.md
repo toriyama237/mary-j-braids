@@ -30,7 +30,7 @@ clients, prestations, programme de fidélité et finances, depuis un téléphone
 | **Exports**            | Rapport financier PDF, fiche client PDF, export Excel (CSV) des passages.                                                                                                                                                                   |
 | **Réglages**           | Catalogue des services (ajout, modification, masquage, suppression si jamais utilisé), seuil de fidélité, **utilisateurs** (création, rôle, réinitialisation du mot de passe, suppression), mot de passe personnel.                         |
 
-Interface pensée d'abord pour le téléphone (barre de navigation en bas, gros boutons),
+Interface pensée d'abord pour le téléphone (barre de navigation en bas, gros boutons), installable sur l'écran d'accueil (icône « MJ », ouverture plein écran),
 animations discrètes qui respectent le réglage « réduire les animations » du système.
 
 ## Stack technique
@@ -95,6 +95,7 @@ drizzle/                       Migrations SQL
 - Chaque page, action et export vérifie la session côté serveur (`requireUser`, `requireAdmin` pour les finances et les réglages), pas seulement le proxy.
 - Un gérant ne peut ni se rétrograder ni supprimer son propre compte ; il reste toujours au moins un gérant.
 - Mots de passe hachés avec bcrypt (12 tours) ; cookie de session `httpOnly`, `secure` en production.
+- Après 5 mots de passe faux pour un même identifiant, la connexion est bloquée 1 minute (compte à rebours affiché).
 - Toutes les saisies sont validées côté serveur avec Zod ; les requêtes SQL passent par Drizzle (paramétrées).
 - Aucune donnée réelle dans ce dépôt : `.env` est ignoré par git, les données de démo sont fictives.
 

@@ -88,3 +88,10 @@ export type User = typeof users.$inferSelect;
 export type Client = typeof clients.$inferSelect;
 export type Service = typeof services.$inferSelect;
 export type Visit = typeof visits.$inferSelect;
+
+// Essais de connexion ratés, par identifiant : 5 échecs → 1 minute d'attente.
+export const loginAttempts = mysqlTable("login_attempts", {
+  username: varchar("username", { length: 50 }).primaryKey(),
+  failures: int("failures").default(0).notNull(),
+  lockedUntil: timestamp("locked_until"),
+});

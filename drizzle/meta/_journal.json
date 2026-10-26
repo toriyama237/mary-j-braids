@@ -15,6 +15,13 @@
       "when": 1793030705964,
       "tag": "0001_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1793031935922,
+      "tag": "0002_login_attempts",
+      "breakpoints": true
     }
   ]
 }

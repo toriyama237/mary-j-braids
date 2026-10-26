@@ -16,6 +16,10 @@ export const metadata: Metadata = {
   title: { default: "Mary J Braids", template: "%s · Mary J Braids" },
   description: "Gestion des clients, prestations et fidélité du salon Mary J Braids.",
   robots: { index: false, follow: false },
+  applicationName: "Mary J Braids",
+  // iPhone : ouverture plein écran depuis l'écran d'accueil.
+  appleWebApp: { capable: true, title: "Mary J Braids", statusBarStyle: "default" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
